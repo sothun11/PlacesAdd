@@ -2,12 +2,12 @@ package com.example.placesadd;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -18,11 +18,13 @@ import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.StringTokenizer;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,14 +34,15 @@ public class MainActivity extends AppCompatActivity {
     public EditText lngText;
     public Button saveBtn;
     public Button readBtn;
-    public Button dirBtn;
-    public TextView viewText;
 
     private static final int REQUEST_ID_READ_PERMISSION = 100;
     private static final int REQUEST_ID_WRITE_PERMISSION = 200;
 
     private final String fileName = "places.txt";
     ArrayList<Places> placesArr;
+
+
+    String formatStr = "%-25s %-13s %-13s %-13s \n";
 
 
     @Override
@@ -54,17 +57,17 @@ public class MainActivity extends AppCompatActivity {
 
         saveBtn = (Button) findViewById(R.id.saveBtn);
         readBtn = (Button) findViewById(R.id.readBtn);
-        dirBtn = (Button) findViewById(R.id.dirBtn);
-
-        viewText = (TextView) findViewById(R.id.viewText);
 
         placesArr = new ArrayList<Places>();
+
+
 
         saveBtn.setOnClickListener(new OnClickListener() {
 
             @Override
             public void onClick(View arg0) {
                 askPermissionAndWriteFile();
+                Toast.makeText(getApplicationContext(),"A place has been saved", Toast.LENGTH_LONG).show();
             }
             
 
@@ -76,26 +79,21 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View arg0) {
                 askPermissionAndReadFile();
             }
-
         });
 
-        dirBtn.setOnClickListener(new OnClickListener() {
 
-            @Override
-            public void onClick(View arg0) {
-                listExternalStorages();
-            }
-
-        });
+        loadData();
 
     }
+
+
 
     private void askPermissionAndWriteFile() {
         boolean canWrite = this.askPermission(REQUEST_ID_WRITE_PERMISSION,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE);
         //
         if (canWrite) {
-            this.writeFile();
+            this.addPlace();
         }
     }
 
@@ -146,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 case REQUEST_ID_WRITE_PERMISSION: {
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        writeFile();
+                        addPlace();
                     }
                 }
             }
@@ -155,11 +153,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void writeFile(){
-        File extStore = Environment.getExternalStorageDirectory();
-        // ==> /storage/emulated/0/note.txt
-        String path = extStore.getAbsolutePath() + "/" + fileName;
-        Log.i("ExternalStorageDemo", "Save to: " + path);
+
+
+
+
+
+
+
+    //add a new
+    private void addPlace(){
 
         String name = nameText.getText().toString();
         String phone = phoneText.getText().toString();
@@ -169,7 +171,24 @@ public class MainActivity extends AppCompatActivity {
         Places place = new Places(name,phone,lat,lng);
         placesArr.add(place);
 
+        writeFile();
+
+        nameText.setText("");
+        phoneText.setText("");
+        latText.setText("");
+        lngText.setText("");
+
+    }
+
+
+    //write whatever is in array to text file
+    private void writeFile(){
+        //Find Directory for fileName to be created
+        File directory = Environment.getExternalStorageDirectory();
+        String path = directory.getAbsolutePath() + "/" + fileName;
+
         try {
+            String data = null;
             File file = new File(path);
             file.createNewFile();
             FileOutputStream fos = new FileOutputStream(file);
@@ -177,88 +196,97 @@ public class MainActivity extends AppCompatActivity {
 
             for(int i = 0; i < placesArr.size(); i++)
             {
-                String data = placesArr.get(i).getName() + "|"
-                        + placesArr.get(i).getPhone() + "|"
-                        + placesArr.get(i).getLat() + "|"
-                        + placesArr.get(i).getLng() + "\n";
-
-                osw.write(data);
+                //put file in format 'formatStr'
+                data = String.format(formatStr,
+                        placesArr.get(i).getName(),
+                        placesArr.get(i).getPhone(),
+                        placesArr.get(i).getLat(),
+                        placesArr.get(i).getLng());
+                osw.append(data);
 
             }
+
             osw.close();
             fos.close();
 
-            nameText.setText("");
-            phoneText.setText("");
-            latText.setText("");
-            lngText.setText("");
 
-            Toast.makeText(getApplicationContext(), fileName + " saved", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void readFile() {
 
-        File extStore = Environment.getExternalStorageDirectory();
-        // ==> /storage/emulated/0/note.txt
-        String path = extStore.getAbsolutePath() + "/" + fileName;
-        Log.i("ExternalStorageDemo", "Read file: " + path);
 
-        String s = "";
-        String fileContent = "";
-        try {
-            File myFile = new File(path);
-            FileInputStream fIn = new FileInputStream(myFile);
-            BufferedReader myReader = new BufferedReader(
-                    new InputStreamReader(fIn));
+    public void readFile() {
+        Intent intent = new Intent(getApplicationContext(), SecondActivity.class);
+        startActivityForResult(intent, 1);
+    }
 
-            while ((s = myReader.readLine()) != null) {
-                fileContent += s + "\n";
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if(requestCode == 1 && resultCode == RESULT_OK){
+
+            if(!(data.getStringExtra("Data")).equals("")){
+
+                int i = Integer.parseInt(data.getStringExtra("Data"));
+
+                if(i <= placesArr.size()) {
+                    placesArr.remove(i-1);
+                    writeFile();
+                    Toast.makeText(getApplicationContext(),"A place has been deleted", Toast.LENGTH_LONG).show();
+                }
+
+                else {
+                    Toast.makeText(this, "File could not be deleted, please enter a valid number", Toast.LENGTH_SHORT).show();
+                }
+
             }
-            myReader.close();
 
-            this.viewText.setText(fileContent);
-        } catch (IOException e) {
-            e.printStackTrace();
+            else {
+                Toast.makeText(this, "File could not be deleted, please enter a valid number", Toast.LENGTH_SHORT).show();
+            }
+
         }
-        Toast.makeText(getApplicationContext(), fileContent, Toast.LENGTH_LONG).show();
+
     }
 
-    private void listExternalStorages() {
-        StringBuilder sb = new StringBuilder();
 
-        sb.append("Data Directory: ").append("\n - ")
-                .append(Environment.getDataDirectory().toString()).append("\n");
+    public void loadData() {
+        placesArr.clear();
 
-        sb.append("Download Cache Directory: ").append("\n - ")
-                .append(Environment.getDownloadCacheDirectory().toString()).append("\n");
+        File directory = Environment.getExternalStorageDirectory();
+        String path = directory.getAbsolutePath() + "/" + fileName;
 
-        sb.append("External Storage State: ").append("\n - ")
-                .append(Environment.getExternalStorageState().toString()).append("\n");
+        String lineFromFile;
 
-        sb.append("External Storage Directory: ").append("\n - ")
-                .append(Environment.getExternalStorageDirectory().toString()).append("\n");
+        File file = new File(path);
 
-        sb.append("Is External Storage Emulated?: ").append("\n - ")
-                .append(Environment.isExternalStorageEmulated()).append("\n");
+        if(file.exists())
+        {
+            try {
+                FileInputStream fis = new FileInputStream(file);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
 
-        sb.append("Is External Storage Removable?: ").append("\n - ")
-                .append(Environment.isExternalStorageRemovable()).append("\n");
+                while((lineFromFile = reader.readLine()) != null)
+                {
+                    StringTokenizer token = new StringTokenizer(lineFromFile, " ");
+                    Places place = new Places(token.nextToken(), token.nextToken(), token.nextToken() ,token.nextToken());
+                    placesArr.add(place);
+                }
 
-        sb.append("External Storage Public Directory (Music): ").append("\n - ")
-                .append(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).toString()).append("\n");
+                reader.close();
 
-        sb.append("Download Cache Directory: ").append("\n - ")
-                .append(Environment.getDownloadCacheDirectory().toString()).append("\n");
-
-        sb.append("Root Directory: ").append("\n - ")
-                .append(Environment.getRootDirectory().toString()).append("\n");
-
-        Log.i("ExternalStorageDemo", sb.toString());
-        this.viewText.setText(sb.toString());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
+
+
+
 
 
 
