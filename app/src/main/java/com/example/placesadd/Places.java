@@ -8,19 +8,14 @@ public class Places {
     private String phone;
     private String lat;
     private String lng;
+    private String serviceType;
 
-    public Places() {
-        name = null;
-        phone = null;
-        lat = null;
-        lng = null;
-    }
-
-    public Places(String n, String p, String lt, String lg) {
+    public Places(String n, String p, String lt, String lg, String sType) {
         name = n;
         phone = p;
         lat = lt;
         lng = lg;
+        serviceType = sType;
     }
 
     public String getName() {
@@ -39,8 +34,8 @@ public class Places {
         return lng;
     }
 
-    public String printPlace() {
-        return this.getName() + " " + this.getPhone() + " " + this.getLat() + " " + this.getLng();
+    public String getServiceType() {
+        return serviceType;
     }
 
 }

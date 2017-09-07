@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -22,8 +23,9 @@ public class SecondActivity extends AppCompatActivity {
 
     public TextView viewText;
     public EditText index;
+    public TextView instructtion;
 
-    private final String fileName = "places.txt";
+    private final String fileName = "passKongPlaces.txt";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,7 +33,12 @@ public class SecondActivity extends AppCompatActivity {
         setContentView(R.layout.second_activity);
 
         viewText = (TextView) findViewById(R.id.viewText);
+        instructtion = (TextView) findViewById(R.id.instruction);
         index = (EditText) findViewById(R.id.index);
+
+        viewText.setMovementMethod(new ScrollingMovementMethod());
+
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         setViewText();
 
@@ -42,7 +49,6 @@ public class SecondActivity extends AppCompatActivity {
         //locate the file
         File directory = Environment.getExternalStorageDirectory();
         String path = directory.getAbsolutePath() + "/" + fileName;
-
 
         String s = "";
         String fileContent = "";

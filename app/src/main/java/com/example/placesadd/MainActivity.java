@@ -1,7 +1,6 @@
 package com.example.placesadd;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -12,6 +11,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,15 +34,25 @@ public class MainActivity extends AppCompatActivity {
     public EditText lngText;
     public Button saveBtn;
     public Button readBtn;
+    public TextView intruction;
+    public RadioButton motoRBtn;
+    public RadioButton carRBtn;
+    public RadioButton bothRBtn;
 
     private static final int REQUEST_ID_READ_PERMISSION = 100;
     private static final int REQUEST_ID_WRITE_PERMISSION = 200;
 
-    private final String fileName = "places.txt";
+    private final String fileName = "passKongPlaces.txt";
     ArrayList<Places> placesArr;
 
 
-    String formatStr = "%-25s %-13s %-13s %-13s \n";
+    String formatStr = "%-25s %-13s %-13s %-13s %-4s\n";
+    String instruction = "1. Enter name as Name,Lastname\n" +
+            "2. Enter phone number\n" +
+            "3. Click on MAP and long press the location you want\n" +
+            "4. Click on SAVE to save place\n" +
+            "5. Clock on READ to see and delete your data";
+    String serviceType = "null";
 
 
     @Override
@@ -55,8 +65,17 @@ public class MainActivity extends AppCompatActivity {
         latText = (EditText) findViewById(R.id.latText);
         lngText = (EditText) findViewById(R.id.lngText);
 
+        motoRBtn = (RadioButton) findViewById(R.id.motoRBtn);
+        carRBtn = (RadioButton) findViewById(R.id.carRBtn);
+        bothRBtn = (RadioButton) findViewById(R.id.bothRBtn);
+
         saveBtn = (Button) findViewById(R.id.saveBtn);
         readBtn = (Button) findViewById(R.id.readBtn);
+
+
+
+        intruction = (TextView) findViewById(R.id.instruction);
+        intruction.setText(instruction);
 
         placesArr = new ArrayList<Places>();
 
@@ -67,9 +86,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View arg0) {
                 askPermissionAndWriteFile();
-                Toast.makeText(getApplicationContext(),"A place has been saved", Toast.LENGTH_LONG).show();
             }
-            
+
 
         });
 
@@ -84,6 +102,27 @@ public class MainActivity extends AppCompatActivity {
 
         loadData();
 
+    }
+
+    public void onRadioButtonClicked(View view) {
+        // Is the button now checked?
+        boolean checked = ((RadioButton) view).isChecked();
+
+        // Check which radio button was clicked
+        switch(view.getId()) {
+            case R.id.motoRBtn:
+                if (checked)
+                    serviceType = "moto";
+                    break;
+            case R.id.carRBtn:
+                if (checked)
+                    serviceType = "car";
+                    break;
+            case R.id.bothRBtn:
+                if (checked)
+                    serviceType = "both";
+                    break;
+        }
     }
 
 
@@ -163,25 +202,35 @@ public class MainActivity extends AppCompatActivity {
     //add a new
     private void addPlace(){
 
+
         String name = nameText.getText().toString();
         String phone = phoneText.getText().toString();
         String lat = latText.getText().toString();
         String lng = lngText.getText().toString();
 
-        Places place = new Places(name,phone,lat,lng);
-        placesArr.add(place);
+        if(!(name.equals("") || phone.equals("") || lat.equals("") || lng.equals(""))) {
+            Places place = new Places(name, phone, lat, lng, serviceType);
+            placesArr.add(place);
 
-        writeFile();
+            writeFile();
+            Toast.makeText(getApplicationContext(),"A place has been saved", Toast.LENGTH_LONG).show();
+            nameText.setText("");
+            phoneText.setText("");
+            latText.setText("");
+            lngText.setText("");
+            motoRBtn.setChecked(false);
+            carRBtn.setChecked(false);
+            bothRBtn.setChecked(false);
 
-        nameText.setText("");
-        phoneText.setText("");
-        latText.setText("");
-        lngText.setText("");
+        }
 
+        else{
+            Toast.makeText(getApplicationContext(),"Please fill all the data box", Toast.LENGTH_LONG).show();
+        }
     }
 
 
-    //write whatever is in array to text file
+    //write whatever is in array to text places.txt
     private void writeFile(){
         //Find Directory for fileName to be created
         File directory = Environment.getExternalStorageDirectory();
@@ -201,7 +250,8 @@ public class MainActivity extends AppCompatActivity {
                         placesArr.get(i).getName(),
                         placesArr.get(i).getPhone(),
                         placesArr.get(i).getLat(),
-                        placesArr.get(i).getLng());
+                        placesArr.get(i).getLng(),
+                        placesArr.get(i).getServiceType());
                 osw.append(data);
 
             }
@@ -222,6 +272,11 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, 1);
     }
 
+    public void goToMap(View view) {
+        Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
+        startActivityForResult(intent, 2);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -236,16 +291,25 @@ public class MainActivity extends AppCompatActivity {
                     writeFile();
                     Toast.makeText(getApplicationContext(),"A place has been deleted", Toast.LENGTH_LONG).show();
                 }
-
                 else {
                     Toast.makeText(this, "File could not be deleted, please enter a valid number", Toast.LENGTH_SHORT).show();
                 }
-
             }
-
             else {
                 Toast.makeText(this, "File could not be deleted, please enter a valid number", Toast.LENGTH_SHORT).show();
             }
+
+        }
+
+        if(requestCode == 2 && resultCode == RESULT_OK)
+        {
+            Bundle extras = data.getExtras();
+            String lat = extras.getString("latitude").substring(0,10);
+            String lng = extras.getString("longitude").substring(0,10);
+
+            latText.setText(lat);
+            lngText.setText(lng);
+
 
         }
 
@@ -271,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
                 while((lineFromFile = reader.readLine()) != null)
                 {
                     StringTokenizer token = new StringTokenizer(lineFromFile, " ");
-                    Places place = new Places(token.nextToken(), token.nextToken(), token.nextToken() ,token.nextToken());
+                    Places place = new Places(token.nextToken(), token.nextToken(), token.nextToken() ,token.nextToken(), token.nextToken());
                     placesArr.add(place);
                 }
 
